@@ -3,7 +3,8 @@ use serde::{Serialize, Deserialize};
 use crate::contracts;
 use crate::types::TxRef;
 use crate::TransactionStatus;
-
+use crate::std::collections::BTreeMap;
+use crate::contracts::AccountIdWrapper;
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Auction {
     pub bids: BTreeMap<AccountIdWrapper, u32>,
@@ -39,38 +40,30 @@ pub enum Error {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Request {
     /// Ask for the value of the counter
-    PlaceBid {},
+    GetWinner ,
 }
 
 /// Query responses.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Response {
     GetWinner {
-        winner: Option(AccountIdWrapper),
+        winner: Option<AccountIdWrapper>,
     },
     Error(Error),
 }
 
 
-impl Auction {
-    /// Initializes the contract
-    pub fn new() -> Self {
-        Auction { bids: BTreeMap::new(), winner:None, winning_bid:0 }
-    }
-
-}
 
 impl contracts::Contract<Command, Request, Response> for Auction {
-    fn id(&self) -> contracts::ContractId { contracts::AUCTION_HOUSE }
+    fn id(&self) -> contracts::ContractId { contracts::AUCTION }
 
     fn handle_command(&mut self, _origin: &chain::AccountId, _txref: &TxRef, cmd: Command) -> TransactionStatus {
         match cmd {
             Command::PlaceBid { value } => {
-                let current_user = AccountIdWrapper(origin.clone());
-                self.bids.insert(current_user, value);
-                println!("got bid {} from {}", value, current_user);
+                let current_user = AccountIdWrapper(_origin.clone()); 
+                println!("got bid {} from {:?}", value, current_user);
+                self.bids.insert(current_user.clone(), value);
                 if value > self.winning_bid {
-                    println!("setting {} as the new winner", current_user);
                     self.winning_bid = value.clone();
                     self.winner = Some(current_user);
                 }
@@ -83,7 +76,7 @@ impl contracts::Contract<Command, Request, Response> for Auction {
         let inner = || -> Result<Response, Error> {
             match req {
                 Request::GetWinner => {
-                    Ok(Response::GetWinner { winner: self.winner })
+                    Ok(Response::GetWinner { winner: self.winner.clone() })
                 }
             }
         };
